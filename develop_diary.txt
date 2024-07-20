@@ -1,0 +1,3 @@
+20240704 16:49 使用kingsideKP与queensideKP判断易位合法性，下一步应当测试着法生成的完备性与正确性。
+0705 0:29 allMoves基本确定完备正确，可以开始着手编写makeMove。以及注意：allMoves未考虑将军的情况。
+0708 16:29 makeMove完成，待测试。
