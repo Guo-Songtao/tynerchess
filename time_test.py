@@ -10,7 +10,7 @@ import timer.dicted_timer as dt
 
 def test():
     res = cb.Searcher().go(
-        p.Position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"), 5
+        p.Position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"), 4
     )
     for key in dt.d_time.keys():
         print(f"{key}: {dt.d_time[key]}")

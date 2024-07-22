@@ -6,7 +6,7 @@ from importlib import reload
 reload(p)
 INF = pow(10, 9) - 1
 
-USE_AB = False
+USE_AB = True
 
 
 class Searcher:
