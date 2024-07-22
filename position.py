@@ -9,6 +9,7 @@ import timer.dicted_timer as dt
 
 
 if not USE_CACHE:
+
     def cache(func):
         return func
 
@@ -99,6 +100,8 @@ class Position:
         self.mateSteps = int(sfen[4])
         self.numMoves = int(sfen[5])
 
+        return self
+
     @dt.dicted_timer
     def __init__(self, fen: str = None):
         self.board: list[str] = [BLANK] * 120
@@ -120,8 +123,14 @@ class Position:
         new.board = [self.board[i] for i in range(120)]
         new.turn = self.turn
         new.canCastle = {
-            TURN_W: {"k": self.canCastle[TURN_W]["k"], "q": self.canCastle[TURN_W]["q"]},
-            TURN_B: {"k": self.canCastle[TURN_B]["k"], "q": self.canCastle[TURN_B]["q"]},
+            TURN_W: {
+                "k": self.canCastle[TURN_W]["k"],
+                "q": self.canCastle[TURN_W]["q"],
+            },
+            TURN_B: {
+                "k": self.canCastle[TURN_B]["k"],
+                "q": self.canCastle[TURN_B]["q"],
+            },
         }
         new.enPassant = self.enPassant
         new.mateSteps = self.mateSteps
@@ -154,7 +163,7 @@ class Position:
 
     @dt.dicted_timer
     def __eq__(self, obj) -> bool:
-        return ((
+        return (
             "".join(self.board),
             self.turn,
             tuple((tuple(d.values()) for d in self.canCastle.values())),
@@ -164,10 +173,11 @@ class Position:
             obj.turn,
             tuple((tuple(d.values()) for d in obj.canCastle.values())),
             obj.enPassant,
-        ))
+        )
 
     def setBegin(self):
         self.readFEN(FEN_BEGIN)
+        return self
 
     def fen(self) -> str:
         sboard: str = ""
@@ -370,7 +380,7 @@ class Position:
                     ans.append((index, to))
         ans = tuple((Move(*mv) for mv in ans))
         return ans
-    
+
     @cache
     @dt.dicted_timer
     def allLeagalMoves(self) -> tuple[Move, ...]:
