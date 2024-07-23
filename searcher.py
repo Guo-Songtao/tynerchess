@@ -6,7 +6,6 @@ from importlib import reload
 reload(p)
 INF = pow(10, 9) - 1
 
-USE_AB = True
 
 
 class Searcher:
@@ -28,7 +27,7 @@ class Searcher:
         if depth == 0:
             return pos.calcScore()
 
-        for mv in pos.allLeagalMoves():
+        for mv in pos.allMoves():
             child_score = self.search(pos.makeMove(mv), depth - 1, alpha, beta)
             if pos.turn == TURN_W and child_score > alpha:  # max
                 alpha = child_score
@@ -46,7 +45,7 @@ class Searcher:
         alpha = -INF
         beta = INF
         best_move = None
-        for mv in pos.allLeagalMoves():
+        for mv in pos.allMoves():
             child_score = self.search(pos.makeMove(mv), depth - 1, alpha, beta)
             if pos.turn == TURN_W and child_score > alpha:  # max
                 alpha = child_score

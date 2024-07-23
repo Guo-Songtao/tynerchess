@@ -313,14 +313,30 @@ class Position:
         """
         return (mv in self.allMoves()) and (not self.makeMove(mv).isChecked(self.turn))
 
+    @cache
     @dt.dicted_timer
     def allMoves(self) -> tuple[Move, ...]:
         """
         a list of all pesudo-leagal moves. the king can be checked.
         """
-        ans = []
+        caputures: list[Move] = []
+        castles: list[Move] = []
+        others: list[Move] = []
         isMine = str.isupper if self.turn == TURN_W else str.islower
         isHis = str.islower if self.turn == TURN_W else str.isupper
+
+        def addAns(fro: int, to: int) -> bool:
+            """
+            suitable for moves except enpassant and castle.
+            return whether to break.
+            """
+            if self.board[to] == BLANK:
+                others.append(Move(fro, to))
+                return False
+            elif isHis(self.board[to]):
+                caputures.append(Move(fro, to))
+                return True
+            return True
 
         for index, piece in enumerate(self.board):
             if not isMine(piece):
@@ -330,20 +346,12 @@ class Position:
                     to = index
                     while True:
                         to += direction
-                        if self.board[to] == BLANK:
-                            ans.append((index, to))
-                        elif isHis(self.board[to]):
-                            ans.append((index, to))
-                            break
-                        else:
+                        if addAns(index, to):
                             break
             elif piece in "NKnk":
                 for direction in DIRS_PIECES[piece]:
                     to = index + direction
-                    if self.board[to] == BLANK:
-                        ans.append((index, to))
-                    elif isHis(self.board[to]):
-                        ans.append((index, to))
+                    addAns(index, to)
                 if piece in "Kk":  # castle
                     # kingside
                     if (
@@ -351,7 +359,7 @@ class Position:
                         and self.canCastle[self.turn]["k"] == True
                         and not self.kingsideKP()
                     ):
-                        ans.append((index, index + 2 * E))
+                        castles.append(Move(index, index + 2 * E))
                     # queenside
                     if (
                         self.board[index + W]
@@ -361,27 +369,27 @@ class Position:
                         and self.canCastle[self.turn]["q"] == True
                         and not self.queensideKP()
                     ):
-                        ans.append((index, index + 2 * W))
+                        castles.append(Move(index, index + 2 * W))
             else:  # pawn
                 front = N if piece == "P" else S
 
                 to = index + front
                 if self.board[to] == BLANK:
-                    ans.append((index, to))
+                    others.append(Move(index, to))
                 for to in [index + front + E, index + front + W]:
                     if isHis(self.board[to]) or to == self.enPassant:
-                        ans.append((index, to))
+                        others.append(Move(index, to))
                 to = index + 2 * front  # the first move
                 if (
                     index // 10 == (8 if self.turn == TURN_W else 3)
                     and self.board[to] == BLANK
                     and self.board[index + front] == BLANK
                 ):
-                    ans.append((index, to))
-        ans = tuple((Move(*mv) for mv in ans))
-        return ans
+                    others.append(Move(index, to))
+        castles.extend(caputures)
+        castles.extend(others)
+        return castles
 
-    @cache
     @dt.dicted_timer
     def allLeagalMoves(self) -> tuple[Move, ...]:
         return tuple(
@@ -442,17 +450,17 @@ class Position:
         bot.turn = not bot.turn
         return bot
 
-    @dt.dicted_timer
+    """@dt.dicted_timer
     def checkmate(self) -> bool:
-        """
+        ""
         True: the side to move is checked and has no leagal move.
         False: still have leagal move(s).
-        """
+        ""
         return len(self.allLeagalMoves()) == 0 and self.isChecked(self.turn)
 
     @dt.dicted_timer
     def gameEnd(self) -> Optional[int]:
-        """
+        ""
         Checkmate: -> INF or -INF
             no leagal moves while king attacked
         Draw: -> 0
@@ -462,7 +470,7 @@ class Position:
                 2)no rooks, queens;
                 3)no more than 2 light pieces
         Game going on: -> None
-        """
+        ""
         if len(self.allLeagalMoves()) == 0:
             if self.isChecked(self.turn):
                 return -INF if self.turn == TURN_W else INF
@@ -488,6 +496,7 @@ class Position:
             return 0
 
         return None
+"""
 
     @dt.dicted_timer
     def isMiddleGame(self) -> bool:
@@ -504,9 +513,6 @@ class Position:
     @dt.dicted_timer
     @cache
     def calcScore(self) -> int:
-        if self.gameEnd() != None:
-            return self.gameEnd()
-
         res = 0
         for i in range(120):
             key = self.board[i]

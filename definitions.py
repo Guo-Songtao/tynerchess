@@ -50,3 +50,5 @@ def timer(func):
 
 
 USE_CACHE = True
+USE_AB = True
+TEST_DEPTH = 6

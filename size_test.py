@@ -1,5 +1,5 @@
 import position as p
-import chessbot as cb
+import searcher as cb
 from definitions import *
 
 from pympler import asizeof
