@@ -1,17 +1,11 @@
-from typing import Union, Optional
+from typing import Any, Union, Optional
 from copy import deepcopy
+from itertools import product
 from functools import cache
-
 from pst import PST
 
 from definitions import *
 import timer.dicted_timer as dt
-
-
-if not USE_CACHE:
-
-    def cache(func):
-        return func
 
 
 def isOnBoard(n: int) -> bool:
@@ -47,6 +41,39 @@ def sq2cnt(sq: int) -> int:
 def cnt2sq(cnt: int) -> int:
     return cnt % 8 + 1 + 10 * (cnt // 8 + 2)
 
+"""class Cache_Position:
+    def __init__(self, func) -> None:
+        self.func = func
+        self.local_cache = dict()
+    
+    def __call__(self, pos):
+        z_hash = pos.zobrist_hash()
+        if z_hash not in self.local_cache.keys():
+            self.local_cache[z_hash] = self.func(pos)
+
+        return self.local_cache[z_hash]
+    
+    def clear(self):
+        del self.local_cache
+        self.local_cache = dict()
+"""
+local_cache = dict()
+def cache_position(func):
+    """
+    有大问题！！！
+    """
+    local_cache[func.__name__] = dict()
+    def func_wrapper(pos):
+        zob = pos.zobrist_hash()
+        if zob in local_cache[func.__name__].keys():
+            ans = local_cache[func.__name__][zob]
+        else:
+            ans = func(pos)
+            local_cache[func.__name__][zob] = ans
+        return ans
+    return func_wrapper
+if USE_SELF_CACHE:
+    cache = cache_position
 
 class Move:
     """
@@ -145,21 +172,19 @@ class Position:
         )
 
     @dt.dicted_timer
+    def zobrist_hash(self) -> int:
+        ans = 0
+        for sq in (21 + i + j * 10 for i in range(8) for j in range(8)):
+            ans ^= Z_HASH_BOARD[sq][self.board[sq]]
+        ans ^= Z_HASH_TURN[self.turn]
+        for turn, side in product((TURN_W, TURN_B), ("k", "q")):
+            ans ^= Z_HASH_CASTLE[turn][side]
+        if self.enPassant:
+            ans =ans ^ Z_HASH_BOARD[sq][self.board[sq]] ^ Z_HASH_BOARD[sq]["e"]
+        return ans
+
     def __hash__(self) -> int:
-        """
-        containing:
-            board(32 dimensions, 64 situations for each)
-            turn(1 dimension, 2 situations)
-            castle(4 dimensions, 2 situations)
-            en passant(1 dimension, 64 situation)
-        """
-        res = (
-            "".join(self.board),
-            self.turn,
-            tuple(tuple(d.values()) for d in self.canCastle.values()),
-            self.enPassant,
-        ).__hash__()
-        return res
+        return self.zobrist_hash.__hash__()
 
     @dt.dicted_timer
     def __eq__(self, obj) -> bool:
@@ -315,10 +340,14 @@ class Position:
 
     @cache
     @dt.dicted_timer
-    def allMoves(self) -> tuple[Move, ...]:
+    def allMoves(self) -> list[Move]:
         """
         a list of all pesudo-leagal moves. the king can be checked.
         """
+        king = "K" if self.turn == TURN_W else "k"
+        if not king in self.board:
+            return []
+        
         caputures: list[Move] = []
         castles: list[Move] = []
         others: list[Move] = []
@@ -391,64 +420,71 @@ class Position:
         return castles
 
     @dt.dicted_timer
-    def allLeagalMoves(self) -> tuple[Move, ...]:
-        return tuple(
-            (mv for mv in self.allMoves() if not self.makeMove(mv).isChecked(self.turn))
-        )
-
+    def allLeagalMoves(self) -> list[Move]:
+        return [mv for mv in self.allMoves() if not self.makeMove(mv).isChecked(self.turn)]
+        
     @dt.dicted_timer
     def makeMove(self, mv: Move):  # -> ChessBot
         """
         this method would assume that this move is leagal.
         """
-        bot: Position = deepcopy(self)
-        piece = bot.board[mv.fro]
-        capture = bot.board[mv.to]
-        bot.board[mv.fro] = BLANK
-        bot.board[mv.to] = piece
-        bot.enPassant = None
+        pos: Position = deepcopy(self)
+        piece2mv = pos.board[mv.fro]
+        capture = pos.board[mv.to]
+        pos.board[mv.fro] = BLANK
+        pos.board[mv.to] = piece2mv
+        pos.enPassant = None
         # enPassant
         isHis = str.islower if self.turn == TURN_W else str.isupper
-        if piece in "Pp" and mv.to - mv.fro in {N + N, S + S}:
-            for piece in [bot.board[mv.to + E], bot.board[mv.to + W]]:
+        if piece2mv in "Pp" and mv.to - mv.fro in {N + N, S + S}:
+            for piece in [pos.board[mv.to + E], pos.board[mv.to + W]]:
                 if piece in "Pp" and isHis(piece):
-                    bot.enPassant = (mv.fro + mv.to) // 2
-        if bot.turn == TURN_B:
-            bot.numMoves += 1
+                    pos.enPassant = (mv.fro + mv.to) // 2
+        if pos.turn == TURN_B:
+            pos.numMoves += 1
         # 50-steps to draw
-        if piece in "Pp" or capture != BLANK:
-            bot.mateSteps += 1
+        if piece2mv in "Pp" or capture != BLANK:
+            pos.mateSteps += 1
         else:
-            bot.mateSteps = 0
+            pos.mateSteps = 0
         # king moved, cannot castle
-        if piece in "Kk":
-            bot.canCastle[bot.turn]["k"] = bot.canCastle[bot.turn]["q"] = False
+        if piece2mv in "Kk":
+            pos.canCastle[pos.turn]["k"] = pos.canCastle[pos.turn]["q"] = False
         # rook moved, cannot castle
         if mv.fro in [21, 91]:
-            bot.canCastle[bot.turn]["q"] = False
+            pos.canCastle[pos.turn]["q"] = False
         elif mv.fro in [28, 98]:
-            bot.canCastle[bot.turn]["k"] = False
+            pos.canCastle[pos.turn]["k"] = False
         # rook captured, cannot castle
-        if mv.to in [21, 91] and capture in "Rr":
-            bot.canCastle[not bot.turn]["q"] = False
-        elif mv.to in [28, 98] and capture in "Rr":
-            bot.canCastle[not bot.turn]["k"] = False
+        if capture in "Rr":
+            opposite_corner_q, opposite_corner_k = (21, 28) if self.turn == TURN_W else (91, 98)
+            if mv.to == opposite_corner_k:
+                pos.canCastle[not self.turn]["k"] = False
+            elif mv.to == opposite_corner_q:
+                pos.canCastle[not self.turn]["q"] = False
         # capture enPassant
-        if piece in "Pp" and (mv.to - mv.fro) % N != 0 and bot.board[mv.to] == BLANK:
-            front = N if bot.turn else S
-            bot.board[mv.to - front] = BLANK
+        if piece2mv in "Pp" and (mv.to - mv.fro) % N != 0 and self.board[mv.to] == BLANK:
+            front = N if self.turn else S
+            pos.board[mv.to - front] = BLANK
         # castle
-        if piece in "Kk" and mv.to - mv.fro not in DIRECTIONS:
+        if piece2mv in "Kk" and mv.to - mv.fro not in DIRECTIONS:
             # find rook and move it
-            direction = (mv.to - mv.fro) // 2
-            for sq in range(mv.to + direction, mv.to + 3 * direction, direction):
-                if bot.board[sq] in "Rr":
-                    rook = bot.board[sq]
-                    bot.board[sq] = BLANK
-            bot.board[mv.fro + direction] = rook
+            try:
+                direction = (mv.to - mv.fro) // 2
+                for sq in range(mv.to + direction, mv.to + 3 * direction, direction):
+                    if pos.board[sq] in "Rr":
+                        rook = pos.board[sq]
+                        pos.board[sq] = BLANK
+                pos.board[mv.fro + direction] = rook
+            except Exception as e:
+                print("rook unbound!")
+                print(mv, piece2mv, mv.fro, mv.to)
+                print("self:", self)
+                print("bot:", pos)
+                raise e
         # turn
-        bot.turn = not bot.turn
-        return bot
+        pos.turn = not pos.turn
+        return pos
 
     """@dt.dicted_timer
     def checkmate(self) -> bool:
@@ -510,11 +546,11 @@ class Position:
                 count += 1
         return count <= 6
 
-    @dt.dicted_timer
     @cache
+    @dt.dicted_timer
     def calcScore(self) -> int:
         res = 0
-        for i in range(120):
+        for i in (21 + i + j * 10 for i in range(8) for j in range(8)):
             key = self.board[i]
             if key == "K":
                 key = "KM" if self.isMiddleGame() else "KE"

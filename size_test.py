@@ -8,6 +8,9 @@ maxDepth = 3
 differentPositions: list[set] = []
 count: list[int] = []
 
+def asize(obj):
+    return asizeof.asizeof(obj)
+
 
 def dfs(pos: p.Position, depth=maxDepth):
     n = maxDepth - depth

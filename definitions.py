@@ -1,3 +1,5 @@
+import random
+
 SAFEMODE = True
 
 INF = pow(10, 9) - 1
@@ -34,6 +36,12 @@ for piece in "nbrqk":
 
 FEN_BEGIN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
+random.seed("lucky lucky")
+#'e' for enpassant
+Z_HASH_BOARD: list[dict[str, int]] = [{piece: random.randint(-2**127, 2**127 + 1) for piece in "PKQRBNpkqrbne0"} for sq in range(120)]
+Z_HASH_CASTLE: dict[bool, dict[str, int]] = {turn: {side: random.randint(-2**127, 2**127 + 1) for side in "kq"} for turn in [True, False]}
+Z_HASH_TURN: dict[bool, int] = {turn: random.randint(-2**127, 2**127 + 1) for turn in [True, False]}
+
 
 def timer(func):
     def funcWrapper(*args, **kwargs):
@@ -49,6 +57,8 @@ def timer(func):
     return funcWrapper
 
 
-USE_CACHE = True
+USE_SELF_CACHE = False
 USE_AB = True
-TEST_DEPTH = 6
+TEST_DEPTH = 4
+
+MEM_TIME_GAP = 0.01

@@ -1,16 +1,17 @@
-import position as cb
+import position as p
 from importlib import reload
+from definitions import *
 
-reload(cb)
+reload(p)
 
-DATAPATH = r"D:\Users\admin\Documents\code\ChessBot-sohu\stockfishResult.txt"
-
-
-cbot = cb.Position()
-cbot.setBegin()
+DATAPATH = r"D:\Users\admin\Documents\code\tynerchess\test_position\stockfishResult.txt"
 
 
-def searchAll(bot: cb.Position = cbot, depth: int = 0) -> int:
+pos = p.Position()
+pos.setBegin()
+
+
+def searchAll(bot: p.Position = pos, depth: int = 0) -> int:
     if depth == 0:
         return 1
 
@@ -23,29 +24,29 @@ def searchAll(bot: cb.Position = cbot, depth: int = 0) -> int:
     return ans
 
 
-def searchByMoves(depth: int) -> dict[cb.Move : int]:
+def searchByMoves(depth: int) -> dict[p.Move : int]:
     ans = dict()
 
-    global cbot
-    for mv in cbot.allMoves():
-        if cbot.makeMove(mv).isChecked(cbot.turn):
+    global pos
+    for mv in pos.allMoves():
+        if pos.makeMove(mv).isChecked(pos.turn):
             continue
-        ans[mv] = searchAll(cbot.makeMove(mv), depth - 1)
+        ans[mv] = searchAll(pos.makeMove(mv), depth - 1)
 
     return ans
 
 
-def readStockfish() -> dict[cb.Move : int]:
+def readStockfish() -> dict[p.Move : int]:
     ans = dict()
     with open(DATAPATH, "r") as file:
         for line in file:
             smv = line.split(": ")[0]
             num = int(line.split(": ")[1])
-            mv = cb.Move(cb.alg2sq(smv[0:2]), cb.alg2sq(smv[2:4]))
+            mv = p.Move(p.alg2sq(smv[0:2]), p.alg2sq(smv[2:4]))
             ans[mv] = num
     return ans
 
-
+@timer
 def test(depth):
     myans = searchByMoves(depth)
     sfans = readStockfish()

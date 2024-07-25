@@ -1,7 +1,7 @@
-import position as cb
+import position as p
 from importlib import reload
 
-reload(cb)
+reload(p)
 
 DATAPATH = r"D:\Users\admin\Documents\code\ChessBot-sohu\stockfishResult.txt"
 
@@ -9,7 +9,7 @@ DATAPATH = r"D:\Users\admin\Documents\code\ChessBot-sohu\stockfishResult.txt"
 bot = None
 
 
-def testByNumsOfSituations_dfs(bot: cb.Position, depth: int = 1):
+def testByNumsOfSituations_dfs(bot: p.Position, depth: int = 1):
     if depth == 0:
         return 1
 
@@ -22,7 +22,7 @@ def testByNumsOfSituations_dfs(bot: cb.Position, depth: int = 1):
     return ans
 
 
-def testDevidingMoves(bot: cb.Position, depth: int):
+def testDevidingMoves(bot: p.Position, depth: int):
     count = 0
     res = []
     moves = bot.allMoves()
@@ -38,7 +38,7 @@ def testDevidingMoves(bot: cb.Position, depth: int):
 
 def init():
     global bot
-    bot = cb.Position()
+    bot = p.Position()
     bot.setBegin()
 
 
@@ -52,13 +52,13 @@ def testdiv(boter=bot):
             smv = s[0]
             i = int(s[1])
             sfCount += int(i)
-            mv = cb.Move(cb.alg2sq(smv[0:2]), cb.alg2sq(smv[2::]))
+            mv = p.Move(p.alg2sq(smv[0:2]), p.alg2sq(smv[2::]))
             sfRes.append((mv, int(i)))
 
 
 if __name__ == "__main__":
     print("""----------------\ntest_chessbot:\ndepth result""")
     for depth in range(5):
-        bot = cb.Position()
+        bot = p.Position()
         bot.setBegin()
         print(testDevidingMoves(5))

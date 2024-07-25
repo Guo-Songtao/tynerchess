@@ -1,0 +1,6 @@
+1. Use zobrish hash as the __hash__ of the board.
+2. Replace functools.cache with customized position.cache_position.
+3. allMoves() now would judge whether the king is still on the board.
+4. Fixed some logical error and name crush in makeMove().
+5. Added changes.txt
+6. Added easyrunner.py as a simple tool to play with it.
