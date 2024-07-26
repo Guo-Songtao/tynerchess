@@ -1,6 +1,5 @@
 import position as p
 from definitions import *
-from typing import Optional
 from importlib import reload
 
 reload(p)
@@ -13,7 +12,7 @@ class Searcher:
         self.pos: p.Position = p.Position()
 
     def setPos(self, fen: str):
-        self.pos.readFEN(fen)
+        self.pos.init(fen)
 
     def setBegin(self):
         self.setPos(FEN_BEGIN)

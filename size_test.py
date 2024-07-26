@@ -34,7 +34,7 @@ def timed_dfs(pos, depth):
 
 def main():
     pos = p.Position()
-    pos.setBegin()
+    pos.init()
     global maxDepth
     maxDepth = 4
     timed_dfs(pos, maxDepth)

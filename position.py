@@ -94,18 +94,13 @@ class Move:
 
 
 class Position:
-    def readFEN(self, fen: str):
+    def init(self, fen: str = FEN_BEGIN):
         sfen: list[str] = fen.split(" ")
 
         # board
-        for i in ITER_BOARD:
-            self.board[i] = BLANK
-        for i in [0, 1, -1, -2]:
-            for j in range(10):
-                self.board[i * 10 + j] = EDGE
-        for i in range(12):
-            for j in [0, -1]:
-                self.board[i * 10 + j] = EDGE
+        self.board = [BLANK] * 120
+        for sq in ITER_EDGE:
+            self.board[sq] = EDGE
         for i, line in enumerate(sfen[0].split("/")):
             j = 1
             for c in line:
@@ -131,24 +126,10 @@ class Position:
 
     @dt.dicted_timer
     def __init__(self, fen: str = None):
-        self.board: list[str] = [BLANK] * 120
-        self.turn: bool = TURN_W
-        self.canCastle: dict[str, dict[str, bool]] = {
-            TURN_W: {"k": True, "q": True},
-            TURN_B: {"k": True, "q": True},
-        }  # canCastle[turn][side_of_board] = True/False
-        self.enPassant: Optional[int] = None
-        self.mateSteps = 0
-        self.numMoves = 1
-
-        self.zob_hash_val = None
-        self.zobrist_hash()
-
-        if fen:
-            self.readFEN(fen)
+        pass
 
     @dt.dicted_timer
-    def __deepcopy__(self, memo=None):
+    def deepcopy(self):
         new: Position = Position()
         new.board = [self.board[i] for i in range(120)]
         new.turn = self.turn
@@ -214,10 +195,6 @@ class Position:
             tuple((tuple(d.values()) for d in obj.canCastle.values())),
             obj.enPassant,
         )
-
-    def setBegin(self):
-        self.readFEN(FEN_BEGIN)
-        return self
 
     def fen(self) -> str:
         sboard: str = ""
@@ -444,7 +421,7 @@ class Position:
         """
         this method would assume that this move is leagal.
         """
-        pos: Position = deepcopy(self)
+        pos: Position = self.deepcopy()
         piece2mv = pos.board[mv.fro]
         capture = pos.board[mv.to]
         pos.board[mv.fro] = BLANK

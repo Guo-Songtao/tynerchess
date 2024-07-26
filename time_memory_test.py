@@ -2,7 +2,6 @@ import sys
 import psutil
 import os
 import time
-import threading
 
 sys.path.append("..")
 
@@ -30,11 +29,8 @@ def test():
     """mem_view = threading.Thread(target=memo_thread)
     mem_view.start()"""
     res = cb.Searcher().go(
-        p.Position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"), TEST_DEPTH
+        p.Position().init("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"), TEST_DEPTH
     )
-    """running = False
-    for i in (range(0, len(memo_by_time), len(memo_by_time) // 10)):
-        print(f"{i * MEM_TIME_GAP}s: {memo_by_time[i]}MB")"""
     print(f"mem: {get_current_memory_mb()}MB")
     print("------")
     for key in dt.d_time.keys():

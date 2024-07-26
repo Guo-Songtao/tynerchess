@@ -4,7 +4,7 @@ import time_memory_test as tmt
 from definitions import *
 
 def go(fen, depth):
-    return s.Searcher().go(p.Position().readFEN(fen), depth)
+    return s.Searcher().go(p.Position().init(fen), depth)
 
 def clear():
     p.Position.allMoves.cache_clear()

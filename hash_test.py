@@ -8,7 +8,7 @@ reload(p)
 
 def random_fen():
     pos = p.Position()
-    pos.setBegin()
+    pos.init()
     for sq in ITER_BOARD:
         pos.board[sq] = PIECES[random.randint(0, len(PIECES) - 1)]
     pos.turn = [TURN_W, TURN_B][random.randint(0, 1)]
@@ -22,7 +22,7 @@ def main(fen: str = None):
         for _ in range(100000):
             rfen = random_fen()
             pos = p.Position()
-            pos.readFEN(rfen)
+            pos.init(rfen)
             moves = pos.allLeagalMoves()
             try:
                 mv = moves[random.randint(0, len(moves) - 1)]
@@ -30,7 +30,7 @@ def main(fen: str = None):
                 continue
             p_mv = pos.makeMove(mv)
             p_fen = p.Position()
-            p_fen.readFEN(p_mv.fen())
+            p_fen.init(p_mv.fen())
             if not (p_mv == p_fen and hash(p_mv) == hash(p_fen)):
                 flg = False
                 print(rfen, mv)
@@ -38,7 +38,7 @@ def main(fen: str = None):
     else:
         flg = True
         pos = p.Position()
-        pos.readFEN(fen)
+        pos.init(fen)
         moves = pos.allLeagalMoves()
         for mv in moves:
             try:
@@ -47,7 +47,7 @@ def main(fen: str = None):
                 print(pos)
                 raise exc
             p_fen = p.Position()
-            p_fen.readFEN(p_mv.fen())
+            p_fen.init(p_mv.fen())
             if not (p_mv == p_fen and hash(p_mv) == hash(p_fen)):
                 flg = False
                 print(fen, mv)

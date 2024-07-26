@@ -63,8 +63,8 @@ def timer(func):
 
     return funcWrapper
 
-USE_Z_HASH = False
-USE_SELF_CACHE = False
+USE_Z_HASH = True
+USE_SELF_CACHE = True
 USE_AB = True
 TEST_DEPTH = 6
 

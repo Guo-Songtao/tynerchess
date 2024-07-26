@@ -39,7 +39,7 @@ def testDevidingMoves(bot: p.Position, depth: int):
 def init():
     global bot
     bot = p.Position()
-    bot.setBegin()
+    bot.init()
 
 
 def testdiv(boter=bot):
@@ -60,5 +60,5 @@ if __name__ == "__main__":
     print("""----------------\ntest_chessbot:\ndepth result""")
     for depth in range(5):
         bot = p.Position()
-        bot.setBegin()
+        bot.init()
         print(testDevidingMoves(5))

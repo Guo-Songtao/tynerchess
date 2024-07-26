@@ -8,7 +8,7 @@ DATAPATH = r"D:\Users\admin\Documents\code\tynerchess\test_position\stockfishRes
 
 
 pos = p.Position()
-pos.setBegin()
+pos.init()
 
 
 def searchAll(bot: p.Position = pos, depth: int = 0) -> int:
