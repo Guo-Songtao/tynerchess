@@ -42,5 +42,5 @@ def test():
     return res
 
 if __name__ == "__main__":
-    print(f"USE_SELF_CACHE: {USE_SELF_CACHE}\nUSE_AB: {cb.USE_AB}\ndepth: {TEST_DEPTH}\n------")
+    print(f"USE_Z_HASH: {USE_Z_HASH}\nUSE_SELF_CACHE: {USE_SELF_CACHE}\nUSE_AB: {cb.USE_AB}\ndepth: {TEST_DEPTH}\n------")
     print("------\nresult: ", test())

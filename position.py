@@ -59,9 +59,6 @@ def cnt2sq(cnt: int) -> int:
 """
 local_cache = dict()
 def cache_position(func):
-    """
-    有大问题！！！
-    """
     local_cache[func.__name__] = dict()
     def func_wrapper(pos):
         zob = pos.zobrist_hash()
@@ -71,6 +68,7 @@ def cache_position(func):
             ans = func(pos)
             local_cache[func.__name__][zob] = ans
         return ans
+    func_wrapper.__name__ = func.__name__
     return func_wrapper
 if USE_SELF_CACHE:
     cache = cache_position
@@ -100,7 +98,7 @@ class Position:
         sfen: list[str] = fen.split(" ")
 
         # board
-        for i in range(120):
+        for i in ITER_BOARD:
             self.board[i] = BLANK
         for i in [0, 1, -1, -2]:
             for j in range(10):
@@ -127,6 +125,8 @@ class Position:
         self.mateSteps = int(sfen[4])
         self.numMoves = int(sfen[5])
 
+        self.zob_hash_val = None
+        self.zobrist_hash()
         return self
 
     @dt.dicted_timer
@@ -140,6 +140,9 @@ class Position:
         self.enPassant: Optional[int] = None
         self.mateSteps = 0
         self.numMoves = 1
+
+        self.zob_hash_val = None
+        self.zobrist_hash()
 
         if fen:
             self.readFEN(fen)
@@ -162,6 +165,7 @@ class Position:
         new.enPassant = self.enPassant
         new.mateSteps = self.mateSteps
         new.numMoves = self.numMoves
+        new.zob_hash_val = self.zob_hash_val
 
         return new
 
@@ -173,18 +177,29 @@ class Position:
 
     @dt.dicted_timer
     def zobrist_hash(self) -> int:
-        ans = 0
-        for sq in (21 + i + j * 10 for i in range(8) for j in range(8)):
-            ans ^= Z_HASH_BOARD[sq][self.board[sq]]
-        ans ^= Z_HASH_TURN[self.turn]
-        for turn, side in product((TURN_W, TURN_B), ("k", "q")):
-            ans ^= Z_HASH_CASTLE[turn][side]
-        if self.enPassant:
-            ans =ans ^ Z_HASH_BOARD[sq][self.board[sq]] ^ Z_HASH_BOARD[sq]["e"]
-        return ans
+        if self.zob_hash_val == None:
+            ans = 0
+            for sq in (21 + i + j * 10 for i in range(8) for j in range(8)):
+                ans ^= Z_HASH_BOARD[sq][self.board[sq]]
+            ans ^= Z_HASH_TURN[self.turn]
+            for turn, side in product((TURN_W, TURN_B), ("k", "q")):
+                ans ^= Z_HASH_CASTLE[turn][side][self.canCastle[turn][side]]
+            if self.enPassant:
+                ans ^= Z_HASH_BOARD[self.enPassant]["e"]
+            self.zob_hash_val = ans
+        return self.zob_hash_val
+
+    @dt.dicted_timer
+    def oldHash(self) -> int:
+        return hash((
+            "".join(self.board),
+            self.turn,
+            tuple((tuple(d.values()) for d in self.canCastle.values())),
+            self.enPassant,
+        ))
 
     def __hash__(self) -> int:
-        return self.zobrist_hash.__hash__()
+        return self.zobrist_hash() if USE_Z_HASH else self.oldHash()
 
     @dt.dicted_timer
     def __eq__(self, obj) -> bool:
@@ -221,6 +236,7 @@ class Position:
             if count != 0:
                 sboard += str(count)
             sboard += "/"
+        sboard = sboard[:len(sboard) - 1]
 
         sturn = "w" if self.turn == TURN_W else "b"
 
@@ -433,13 +449,18 @@ class Position:
         capture = pos.board[mv.to]
         pos.board[mv.fro] = BLANK
         pos.board[mv.to] = piece2mv
+        pos.zob_hash_val ^= Z_HASH_BOARD[mv.fro][piece2mv] ^ Z_HASH_BOARD[mv.to][capture] ^ Z_HASH_BOARD[mv.to][piece2mv]
         pos.enPassant = None
+        if self.enPassant != None:
+            pos.zob_hash_val ^= Z_HASH_BOARD[self.enPassant]["e"]
         # enPassant
         isHis = str.islower if self.turn == TURN_W else str.isupper
         if piece2mv in "Pp" and mv.to - mv.fro in {N + N, S + S}:
             for piece in [pos.board[mv.to + E], pos.board[mv.to + W]]:
                 if piece in "Pp" and isHis(piece):
                     pos.enPassant = (mv.fro + mv.to) // 2
+                    pos.zob_hash_val ^= Z_HASH_BOARD[pos.enPassant]["e"]
+        #numMoves
         if pos.turn == TURN_B:
             pos.numMoves += 1
         # 50-steps to draw
@@ -447,25 +468,40 @@ class Position:
             pos.mateSteps += 1
         else:
             pos.mateSteps = 0
+        # refresh canCastle
+        canCastle2refresh: set[tuple[bool, str]] = set()
         # king moved, cannot castle
         if piece2mv in "Kk":
-            pos.canCastle[pos.turn]["k"] = pos.canCastle[pos.turn]["q"] = False
+            canCastle2refresh.add((self.turn, "k"))
+            canCastle2refresh.add((self.turn, "q"))
         # rook moved, cannot castle
-        if mv.fro in [21, 91]:
-            pos.canCastle[pos.turn]["q"] = False
-        elif mv.fro in [28, 98]:
-            pos.canCastle[pos.turn]["k"] = False
+        if piece2mv in "Rr":
+            mine_corner_k, mine_corner_q = (91, 98) if self.turn == TURN_W else (21, 28)
+            if mv.fro == mine_corner_k:
+                canCastle2refresh.add((self.turn, "k"))
+            elif mv.fro == mine_corner_q:
+                canCastle2refresh.add((self.turn, "q"))
         # rook captured, cannot castle
         if capture in "Rr":
             opposite_corner_q, opposite_corner_k = (21, 28) if self.turn == TURN_W else (91, 98)
             if mv.to == opposite_corner_k:
-                pos.canCastle[not self.turn]["k"] = False
+                canCastle2refresh.add((not self.turn, "k"))
             elif mv.to == opposite_corner_q:
-                pos.canCastle[not self.turn]["q"] = False
+                canCastle2refresh.add((not self.turn, "q"))
+        # finally, refreash all canCastle
+        for turn, side in canCastle2refresh:
+            pos.zob_hash_val ^= Z_HASH_CASTLE[turn][side][self.canCastle[turn][side]]
+            pos.canCastle[turn][side] = False
+            pos.zob_hash_val ^= Z_HASH_CASTLE[turn][side][False]
         # capture enPassant
-        if piece2mv in "Pp" and (mv.to - mv.fro) % N != 0 and self.board[mv.to] == BLANK:
-            front = N if self.turn else S
-            pos.board[mv.to - front] = BLANK
+        if piece2mv in "Pp" and (mv.to - mv.fro) % N != 0 and capture == BLANK:
+            real_capture_sq = mv.to - (N if self.turn else S)
+            pos.board[real_capture_sq] = BLANK
+            try:
+                pos.zob_hash_val ^= Z_HASH_BOARD[real_capture_sq][self.board[real_capture_sq]] ^ Z_HASH_BOARD[real_capture_sq]["0"]
+            except Exception as exc:
+                print(self, pos, mv)
+                raise exc
         # castle
         if piece2mv in "Kk" and mv.to - mv.fro not in DIRECTIONS:
             # find rook and move it
@@ -475,7 +511,9 @@ class Position:
                     if pos.board[sq] in "Rr":
                         rook = pos.board[sq]
                         pos.board[sq] = BLANK
-                pos.board[mv.fro + direction] = rook
+                        pos.board[mv.fro + direction] = rook
+                        pos.zob_hash_val ^= Z_HASH_BOARD[sq][rook] ^ Z_HASH_BOARD[mv.fro + direction][rook]
+                        break
             except Exception as e:
                 print("rook unbound!")
                 print(mv, piece2mv, mv.fro, mv.to)
@@ -484,6 +522,7 @@ class Position:
                 raise e
         # turn
         pos.turn = not pos.turn
+        pos.zob_hash_val ^= Z_HASH_TURN[TURN_B] # Z_HASH_TURN[TURN_W] = 0, no need of calculating
         return pos
 
     """@dt.dicted_timer
