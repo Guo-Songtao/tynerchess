@@ -1,5 +1,4 @@
-from typing import Any, Union, Optional
-from copy import deepcopy
+from typing import Optional
 from itertools import product
 from functools import cache
 from pst import PST
@@ -41,25 +40,13 @@ def sq2cnt(sq: int) -> int:
 def cnt2sq(cnt: int) -> int:
     return cnt % 8 + 1 + 10 * (cnt // 8 + 2)
 
-"""class Cache_Position:
-    def __init__(self, func) -> None:
-        self.func = func
-        self.local_cache = dict()
-    
-    def __call__(self, pos):
-        z_hash = pos.zobrist_hash()
-        if z_hash not in self.local_cache.keys():
-            self.local_cache[z_hash] = self.func(pos)
 
-        return self.local_cache[z_hash]
-    
-    def clear(self):
-        del self.local_cache
-        self.local_cache = dict()
-"""
 local_cache = dict()
+
+
 def cache_position(func):
     local_cache[func.__name__] = dict()
+
     def func_wrapper(pos):
         zob = pos.zobrist_hash()
         if zob in local_cache[func.__name__].keys():
@@ -68,10 +55,14 @@ def cache_position(func):
             ans = func(pos)
             local_cache[func.__name__][zob] = ans
         return ans
+
     func_wrapper.__name__ = func.__name__
     return func_wrapper
+
+
 if USE_SELF_CACHE:
     cache = cache_position
+
 
 class Move:
     """
@@ -121,17 +112,20 @@ class Position:
         self.numMoves = int(sfen[5])
 
         self.zob_hash_val = None
+        self.score_val = None
         self.zobrist_hash()
+        self.calcScore()
         return self
 
-    @dt.dicted_timer
+    #@dt.dicted_timer
     def __init__(self, fen: str = None):
         pass
 
-    @dt.dicted_timer
+    ##@dt.dicted_timer
     def deepcopy(self):
         new: Position = Position()
-        new.board = [self.board[i] for i in range(120)]
+        new.board = []
+        new.board.extend(self.board)
         new.turn = self.turn
         new.canCastle = {
             TURN_W: {
@@ -147,6 +141,7 @@ class Position:
         new.mateSteps = self.mateSteps
         new.numMoves = self.numMoves
         new.zob_hash_val = self.zob_hash_val
+        new.score_val = self.score_val
 
         return new
 
@@ -156,7 +151,7 @@ class Position:
             pboard, " ".join(self.fen().split(" ")[1::])
         )
 
-    @dt.dicted_timer
+    ##@dt.dicted_timer
     def zobrist_hash(self) -> int:
         if self.zob_hash_val == None:
             ans = 0
@@ -170,19 +165,21 @@ class Position:
             self.zob_hash_val = ans
         return self.zob_hash_val
 
-    @dt.dicted_timer
+    ##@dt.dicted_timer
     def oldHash(self) -> int:
-        return hash((
-            "".join(self.board),
-            self.turn,
-            tuple((tuple(d.values()) for d in self.canCastle.values())),
-            self.enPassant,
-        ))
+        return hash(
+            (
+                "".join(self.board),
+                self.turn,
+                tuple((tuple(d.values()) for d in self.canCastle.values())),
+                self.enPassant,
+            )
+        )
 
     def __hash__(self) -> int:
         return self.zobrist_hash() if USE_Z_HASH else self.oldHash()
 
-    @dt.dicted_timer
+    ##@dt.dicted_timer
     def __eq__(self, obj) -> bool:
         return (
             "".join(self.board),
@@ -213,7 +210,7 @@ class Position:
             if count != 0:
                 sboard += str(count)
             sboard += "/"
-        sboard = sboard[:len(sboard) - 1]
+        sboard = sboard[: len(sboard) - 1]
 
         sturn = "w" if self.turn == TURN_W else "b"
 
@@ -240,7 +237,7 @@ class Position:
 
         return " ".join([sboard, sturn, sCastle, sEnPassant, sMatesteps, sNumMoves])
 
-    @dt.dicted_timer
+    ##@dt.dicted_timer
     def isSquareAttacked(self, square: int, turn: bool = None) -> bool:
         if turn == None:
             turn = self.turn
@@ -294,13 +291,13 @@ class Position:
                 return True
         return False
 
-    @dt.dicted_timer
+    ##@dt.dicted_timer
     def isChecked(self, turn: bool) -> bool:
         king = "K" if turn == TURN_W else "k"
         sq = self.board.index(king)
         return self.isSquareAttacked(sq, turn)
 
-    @dt.dicted_timer
+    ##@dt.dicted_timer
     def kingsideKP(self, turn: int = None) -> bool:
         if not turn:
             turn = self.turn
@@ -310,7 +307,7 @@ class Position:
                 return True
         return False
 
-    @dt.dicted_timer
+    ##@dt.dicted_timer
     def queensideKP(self, turn: int = None) -> bool:
         if not turn:
             turn = self.turn
@@ -320,11 +317,11 @@ class Position:
                 return True
         return False
 
-    @dt.dicted_timer
+    ##@dt.dicted_timer
     def isPseudoLeagelMove(self, mv: Move) -> bool:
         return mv in self.allMoves()
 
-    @dt.dicted_timer
+    ##@dt.dicted_timer
     def isLeagalMove(self, mv: Move) -> bool:
         """
         very slow!
@@ -332,7 +329,7 @@ class Position:
         return (mv in self.allMoves()) and (not self.makeMove(mv).isChecked(self.turn))
 
     @cache
-    @dt.dicted_timer
+    ##@dt.dicted_timer
     def allMoves(self) -> list[Move]:
         """
         a list of all pesudo-leagal moves. the king can be checked.
@@ -340,7 +337,7 @@ class Position:
         king = "K" if self.turn == TURN_W else "k"
         if not king in self.board:
             return []
-        
+
         caputures: list[Move] = []
         castles: list[Move] = []
         others: list[Move] = []
@@ -412,21 +409,28 @@ class Position:
         castles.extend(others)
         return castles
 
-    @dt.dicted_timer
+    ##@dt.dicted_timer
     def allLeagalMoves(self) -> list[Move]:
-        return [mv for mv in self.allMoves() if not self.makeMove(mv).isChecked(self.turn)]
-        
-    @dt.dicted_timer
+        return [
+            mv for mv in self.allMoves() if not self.makeMove(mv).isChecked(self.turn)
+        ]
+
+    #@dt.dicted_timer
     def makeMove(self, mv: Move):  # -> ChessBot
         """
         this method would assume that this move is leagal.
         """
         pos: Position = self.deepcopy()
-        piece2mv = pos.board[mv.fro]
-        capture = pos.board[mv.to]
+        piece2mv = self.board[mv.fro]
+        capture = self.board[mv.to]
         pos.board[mv.fro] = BLANK
         pos.board[mv.to] = piece2mv
-        pos.zob_hash_val ^= Z_HASH_BOARD[mv.fro][piece2mv] ^ Z_HASH_BOARD[mv.to][capture] ^ Z_HASH_BOARD[mv.to][piece2mv]
+        pos.zob_hash_val ^= (
+            Z_HASH_BOARD[mv.fro][piece2mv]
+            ^ Z_HASH_BOARD[mv.to][capture]
+            ^ Z_HASH_BOARD[mv.to][piece2mv]
+        )
+        pos.score_val += (-self.sqScore(mv.fro) - self.sqScore(mv.to) + pos.sqScore(mv.to))
         pos.enPassant = None
         if self.enPassant != None:
             pos.zob_hash_val ^= Z_HASH_BOARD[self.enPassant]["e"]
@@ -437,7 +441,7 @@ class Position:
                 if piece in "Pp" and isHis(piece):
                     pos.enPassant = (mv.fro + mv.to) // 2
                     pos.zob_hash_val ^= Z_HASH_BOARD[pos.enPassant]["e"]
-        #numMoves
+        # numMoves
         if pos.turn == TURN_B:
             pos.numMoves += 1
         # 50-steps to draw
@@ -460,7 +464,9 @@ class Position:
                 canCastle2refresh.add((self.turn, "q"))
         # rook captured, cannot castle
         if capture in "Rr":
-            opposite_corner_q, opposite_corner_k = (21, 28) if self.turn == TURN_W else (91, 98)
+            opposite_corner_q, opposite_corner_k = (
+                (21, 28) if self.turn == TURN_W else (91, 98)
+            )
             if mv.to == opposite_corner_k:
                 canCastle2refresh.add((not self.turn, "k"))
             elif mv.to == opposite_corner_q:
@@ -474,11 +480,8 @@ class Position:
         if piece2mv in "Pp" and (mv.to - mv.fro) % N != 0 and capture == BLANK:
             real_capture_sq = mv.to - (N if self.turn else S)
             pos.board[real_capture_sq] = BLANK
-            try:
-                pos.zob_hash_val ^= Z_HASH_BOARD[real_capture_sq][self.board[real_capture_sq]] ^ Z_HASH_BOARD[real_capture_sq]["0"]
-            except Exception as exc:
-                print(self, pos, mv)
-                raise exc
+            pos.zob_hash_val ^= Z_HASH_BOARD[real_capture_sq][self.board[real_capture_sq]]
+            pos.score_val -= self.sqScore(real_capture_sq)
         # castle
         if piece2mv in "Kk" and mv.to - mv.fro not in DIRECTIONS:
             # find rook and move it
@@ -489,7 +492,11 @@ class Position:
                         rook = pos.board[sq]
                         pos.board[sq] = BLANK
                         pos.board[mv.fro + direction] = rook
-                        pos.zob_hash_val ^= Z_HASH_BOARD[sq][rook] ^ Z_HASH_BOARD[mv.fro + direction][rook]
+                        pos.zob_hash_val ^= (
+                            Z_HASH_BOARD[sq][rook]
+                            ^ Z_HASH_BOARD[mv.fro + direction][rook]
+                        )
+                        pos.score_val += (- self.sqScore(sq) + pos.sqScore(mv.fro + direction))
                         break
             except Exception as e:
                 print("rook unbound!")
@@ -499,10 +506,10 @@ class Position:
                 raise e
         # turn
         pos.turn = not pos.turn
-        pos.zob_hash_val ^= Z_HASH_TURN[TURN_B] # Z_HASH_TURN[TURN_W] = 0, no need of calculating
+        pos.zob_hash_val ^= Z_HASH_TURN[TURN_B]
         return pos
 
-    """@dt.dicted_timer
+    """#@dt.dicted_timer
     def checkmate(self) -> bool:
         ""
         True: the side to move is checked and has no leagal move.
@@ -510,7 +517,7 @@ class Position:
         ""
         return len(self.allLeagalMoves()) == 0 and self.isChecked(self.turn)
 
-    @dt.dicted_timer
+    #@dt.dicted_timer
     def gameEnd(self) -> Optional[int]:
         ""
         Checkmate: -> INF or -INF
@@ -550,11 +557,11 @@ class Position:
         return None
 """
 
-    @dt.dicted_timer
+    #@dt.dicted_timer
     def isMiddleGame(self) -> bool:
         return not self.isEndGame
 
-    @dt.dicted_timer
+    #@dt.dicted_timer
     def isEndGame(self) -> bool:
         count = 0
         for piece in self.board:
@@ -562,18 +569,26 @@ class Position:
                 count += 1
         return count <= 6
 
+    def score(self) -> int:
+        if self.score_val == None:
+            self.calcScore()
+        return self.score_val
+
+    def sqScore(self, sq: int) -> int:
+        key = self.board[sq]
+        if key == "K":
+            key = "KM" if self.isMiddleGame() else "KE"
+        elif key == "k":
+            key = "km" if self.isMiddleGame() else "ke"
+        return PST[key][sq]
+
     @cache
-    @dt.dicted_timer
+    #@dt.dicted_timer
     def calcScore(self) -> int:
         res = 0
-        for i in (21 + i + j * 10 for i in range(8) for j in range(8)):
-            key = self.board[i]
-            if key == "K":
-                key = "KM" if self.isMiddleGame() else "KE"
-            elif key == "k":
-                key = "km" if self.isMiddleGame() else "ke"
-            res += PST[key][i]
-
+        for sq in ITER_BOARD:
+            res += self.sqScore(sq)
+        self.score_val = res
         return res
 
     def move(self, fro, to):

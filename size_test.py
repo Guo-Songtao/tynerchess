@@ -8,6 +8,7 @@ maxDepth = 3
 differentPositions: list[set] = []
 count: list[int] = []
 
+
 def asize(obj):
     return asizeof.asizeof(obj)
 

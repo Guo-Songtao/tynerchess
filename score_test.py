@@ -18,7 +18,7 @@ def random_fen():
         pos.canCastle[turn][side] = [True, False][random.randint(0, 1)]
     return pos.fen()
 
-
+@timer
 def main(fen: str = None):
     if not fen:
         flg = True
@@ -34,7 +34,7 @@ def main(fen: str = None):
             p_mv = pos.makeMove(mv)
             p_fen = p.Position()
             p_fen.init(p_mv.fen())
-            if not (p_mv == p_fen and hash(p_mv) == hash(p_fen)):
+            if not (p_mv == p_fen and p_mv.score() == p_fen.score()):
                 flg = False
                 print(rfen, mv)
         print(flg)
@@ -51,7 +51,7 @@ def main(fen: str = None):
                 raise exc
             p_fen = p.Position()
             p_fen.init(p_mv.fen())
-            if not (p_mv == p_fen and hash(p_mv) == hash(p_fen)):
+            if not (p_mv == p_fen and p_mv.score() == p_fen.score()):
                 flg = False
                 print(fen, mv)
                 print(pos.fen())
@@ -60,4 +60,4 @@ def main(fen: str = None):
 
 
 if __name__ == "__main__":
-    main("r1bqk2r/pppp1p1p/2n2n2/2b1p3/1PB1P1p1/2N2N2/P1PPQPPP/R1B1K2R w KQkq - 0 7")
+    main("rnbqk2r/pppp2pp/3b1n2/1P2pp2/4P3/3B1N2/P1PP1PPP/RNBQK2R b KQkq - 4 5")

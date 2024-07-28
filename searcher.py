@@ -6,7 +6,6 @@ reload(p)
 INF = pow(10, 9) - 1
 
 
-
 class Searcher:
     def __init__(self):
         self.pos: p.Position = p.Position()
@@ -24,7 +23,7 @@ class Searcher:
         return the score of the situation.
         """
         if depth == 0:
-            return pos.calcScore()
+            return pos.score()
 
         for mv in pos.allMoves():
             child_score = self.search(pos.makeMove(mv), depth - 1, alpha, beta)
@@ -36,7 +35,7 @@ class Searcher:
                 break
         return alpha if pos.turn == TURN_W else beta
 
-    @timer
+    #@timer
     def go(self, pos: p.Position, depth: int) -> p.Move:
         if depth < 1:
             raise Exception("Chessbot.go(): depth must be larger than 1!")

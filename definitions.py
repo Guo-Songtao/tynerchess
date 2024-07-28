@@ -37,16 +37,27 @@ for piece in "nbrqk":
 FEN_BEGIN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 ITER_BOARD = tuple((21 + i + j * 10 for i in range(8) for j in range(8)))
-ITER_EDGE = tuple(10 * m + n for m in range(12) for n in range(10) if 10 * m + n not in ITER_BOARD)
+ITER_EDGE = tuple(
+    10 * m + n for m in range(12) for n in range(10) if 10 * m + n not in ITER_BOARD
+)
 
 random.seed("lucky lucky")
+
+
 #'e' for enpassant
 def rand_hash():
-    return random.randint(-2**127, 2**127 + 1)
-Z_HASH_BOARD: list[dict[str, int]] = [{piece: rand_hash() for piece in "PKQRBNpkqrbne0"} for sq in range(120)]
+    return random.randint(-(2**127), 2**127 + 1)
+
+
+Z_HASH_BOARD: list[dict[str, int]] = [
+    {piece: rand_hash() for piece in "PKQRBNpkqrbne" + BLANK} for sq in range(120)
+]
 for d in Z_HASH_BOARD:
-    d["0"] = 0
-Z_HASH_CASTLE: dict[bool, dict[str, dict[bool, int]]] = {turn: {side: {val: rand_hash() for val in (True, False)} for side in "kq"} for turn in [TURN_W, TURN_B]}
+    d[BLANK] = 0
+Z_HASH_CASTLE: dict[bool, dict[str, dict[bool, int]]] = {
+    turn: {side: {val: rand_hash() for val in (True, False)} for side in "kq"}
+    for turn in [TURN_W, TURN_B]
+}
 Z_HASH_TURN: dict[bool, int] = {TURN_W: 0, TURN_B: rand_hash()}
 
 
@@ -60,12 +71,14 @@ def timer(func):
         time_used = time_end - time_start
         print("time used by {}: {}s".format(func.__name__, time_used))
         return result
-
+    funcWrapper.__name__ = func.__name__
     return funcWrapper
+
 
 USE_Z_HASH = True
 USE_SELF_CACHE = True
 USE_AB = True
 TEST_DEPTH = 6
+TEST_FEN = "2r2rk1/1p1nppbp/p1np2p1/q7/2P2P2/1PN1B1PP/P4PB1/2RQ1RK1 w - - 1 16"
 
 MEM_TIME_GAP = 0.01

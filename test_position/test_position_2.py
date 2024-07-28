@@ -46,6 +46,7 @@ def readStockfish() -> dict[p.Move : int]:
             ans[mv] = num
     return ans
 
+
 @timer
 def test(depth):
     myans = searchByMoves(depth)

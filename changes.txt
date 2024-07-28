@@ -1,3 +1,1 @@
-1) position.Position now have a empty __init__(), so as to save time while copying.
-2) position.Position.makeMove() now use self.deepcopy() instead of deepcopy(self) from copy, saving time.
-3) some old test tools may fail, as a consequence of 1).
+1) now score of a position can be indiced from its father position, no need to recalculate.

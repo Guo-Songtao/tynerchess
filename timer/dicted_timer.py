@@ -16,5 +16,6 @@ def dicted_timer(func):
         d_time[func.__name__][0] += 1  # count
         d_time[func.__name__][1] += time_used
         return result
+
     funcWrapper.__name__ = func.__name__
     return funcWrapper

@@ -896,7 +896,6 @@ addVal("KE", 100_000)
 
 k = list(PST.keys())
 for piece in k:
-
     PST[piece.lower()] = deepcopy(PST[piece])[::-1]
     l = PST[piece.lower()]
     for i in range(len(l)):
