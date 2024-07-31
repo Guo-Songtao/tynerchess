@@ -1,5 +1,5 @@
-from typing import Optional
-from itertools import product
+from typing import Optional, Iterator
+from itertools import product, chain
 from functools import cache
 from pst import PST
 
@@ -42,8 +42,6 @@ def cnt2sq(cnt: int) -> int:
 
 
 local_cache = dict()
-
-
 def cache_position(func):
     local_cache[func.__name__] = dict()
 
@@ -58,8 +56,6 @@ def cache_position(func):
 
     func_wrapper.__name__ = func.__name__
     return func_wrapper
-
-
 if USE_SELF_CACHE:
     cache = cache_position
 
@@ -117,11 +113,9 @@ class Position:
         self.calcScore()
         return self
 
-    #@dt.dicted_timer
     def __init__(self, fen: str = None):
         pass
 
-    ##@dt.dicted_timer
     def deepcopy(self):
         new: Position = Position()
         new.board = []
@@ -151,7 +145,6 @@ class Position:
             pboard, " ".join(self.fen().split(" ")[1::])
         )
 
-    ##@dt.dicted_timer
     def zobrist_hash(self) -> int:
         if self.zob_hash_val == None:
             ans = 0
@@ -165,7 +158,6 @@ class Position:
             self.zob_hash_val = ans
         return self.zob_hash_val
 
-    ##@dt.dicted_timer
     def oldHash(self) -> int:
         return hash(
             (
@@ -179,7 +171,6 @@ class Position:
     def __hash__(self) -> int:
         return self.zobrist_hash() if USE_Z_HASH else self.oldHash()
 
-    ##@dt.dicted_timer
     def __eq__(self, obj) -> bool:
         return (
             "".join(self.board),
@@ -237,7 +228,6 @@ class Position:
 
         return " ".join([sboard, sturn, sCastle, sEnPassant, sMatesteps, sNumMoves])
 
-    ##@dt.dicted_timer
     def isSquareAttacked(self, square: int, turn: bool = None) -> bool:
         if turn == None:
             turn = self.turn
@@ -291,13 +281,11 @@ class Position:
                 return True
         return False
 
-    ##@dt.dicted_timer
     def isChecked(self, turn: bool) -> bool:
         king = "K" if turn == TURN_W else "k"
         sq = self.board.index(king)
         return self.isSquareAttacked(sq, turn)
 
-    ##@dt.dicted_timer
     def kingsideKP(self, turn: int = None) -> bool:
         if not turn:
             turn = self.turn
@@ -307,7 +295,6 @@ class Position:
                 return True
         return False
 
-    ##@dt.dicted_timer
     def queensideKP(self, turn: int = None) -> bool:
         if not turn:
             turn = self.turn
@@ -317,11 +304,9 @@ class Position:
                 return True
         return False
 
-    ##@dt.dicted_timer
     def isPseudoLeagelMove(self, mv: Move) -> bool:
         return mv in self.allMoves()
 
-    ##@dt.dicted_timer
     def isLeagalMove(self, mv: Move) -> bool:
         """
         very slow!
@@ -329,8 +314,7 @@ class Position:
         return (mv in self.allMoves()) and (not self.makeMove(mv).isChecked(self.turn))
 
     @cache
-    ##@dt.dicted_timer
-    def allMoves(self) -> list[Move]:
+    def mvGen(self) -> list[Move]:
         """
         a list of all pesudo-leagal moves. the king can be checked.
         """
@@ -338,7 +322,7 @@ class Position:
         if not king in self.board:
             return []
 
-        caputures: list[Move] = []
+        captures: list[Move] = []
         castles: list[Move] = []
         others: list[Move] = []
         isMine = str.isupper if self.turn == TURN_W else str.islower
@@ -353,7 +337,7 @@ class Position:
                 others.append(Move(fro, to))
                 return False
             elif isHis(self.board[to]):
-                caputures.append(Move(fro, to))
+                captures.append(Move(fro, to))
                 return True
             return True
 
@@ -405,17 +389,20 @@ class Position:
                     and self.board[index + front] == BLANK
                 ):
                     others.append(Move(index, to))
-        castles.extend(caputures)
-        castles.extend(others)
-        return castles
+        
+        return castles, captures, others
 
-    ##@dt.dicted_timer
+    def allCaptures(self) -> list[Move]:
+        return self.mvGen()[1]
+    
+    def allMoves(self) -> Iterator[Move]:
+        return chain.from_iterable(self.mvGen())
+
     def allLeagalMoves(self) -> list[Move]:
         return [
             mv for mv in self.allMoves() if not self.makeMove(mv).isChecked(self.turn)
         ]
 
-    #@dt.dicted_timer
     def makeMove(self, mv: Move):  # -> ChessBot
         """
         this method would assume that this move is leagal.
@@ -430,7 +417,9 @@ class Position:
             ^ Z_HASH_BOARD[mv.to][capture]
             ^ Z_HASH_BOARD[mv.to][piece2mv]
         )
-        pos.score_val += (-self.sqScore(mv.fro) - self.sqScore(mv.to) + pos.sqScore(mv.to))
+        pos.score_val += (
+            -self.sqScore(mv.fro) - self.sqScore(mv.to) + pos.sqScore(mv.to)
+        )
         pos.enPassant = None
         if self.enPassant != None:
             pos.zob_hash_val ^= Z_HASH_BOARD[self.enPassant]["e"]
@@ -471,6 +460,10 @@ class Position:
                 canCastle2refresh.add((not self.turn, "k"))
             elif mv.to == opposite_corner_q:
                 canCastle2refresh.add((not self.turn, "q"))
+        # king captured, cannot castle
+        if capture in "Kk":
+            canCastle2refresh.add((not self.turn, "k"))
+            canCastle2refresh.add((not self.turn, "q"))
         # finally, refreash all canCastle
         for turn, side in canCastle2refresh:
             pos.zob_hash_val ^= Z_HASH_CASTLE[turn][side][self.canCastle[turn][side]]
@@ -480,7 +473,9 @@ class Position:
         if piece2mv in "Pp" and (mv.to - mv.fro) % N != 0 and capture == BLANK:
             real_capture_sq = mv.to - (N if self.turn else S)
             pos.board[real_capture_sq] = BLANK
-            pos.zob_hash_val ^= Z_HASH_BOARD[real_capture_sq][self.board[real_capture_sq]]
+            pos.zob_hash_val ^= Z_HASH_BOARD[real_capture_sq][
+                self.board[real_capture_sq]
+            ]
             pos.score_val -= self.sqScore(real_capture_sq)
         # castle
         if piece2mv in "Kk" and mv.to - mv.fro not in DIRECTIONS:
@@ -496,7 +491,9 @@ class Position:
                             Z_HASH_BOARD[sq][rook]
                             ^ Z_HASH_BOARD[mv.fro + direction][rook]
                         )
-                        pos.score_val += (- self.sqScore(sq) + pos.sqScore(mv.fro + direction))
+                        pos.score_val += -self.sqScore(sq) + pos.sqScore(
+                            mv.fro + direction
+                        )
                         break
             except Exception as e:
                 print("rook unbound!")
@@ -509,59 +506,9 @@ class Position:
         pos.zob_hash_val ^= Z_HASH_TURN[TURN_B]
         return pos
 
-    """#@dt.dicted_timer
-    def checkmate(self) -> bool:
-        ""
-        True: the side to move is checked and has no leagal move.
-        False: still have leagal move(s).
-        ""
-        return len(self.allLeagalMoves()) == 0 and self.isChecked(self.turn)
-
-    #@dt.dicted_timer
-    def gameEnd(self) -> Optional[int]:
-        ""
-        Checkmate: -> INF or -INF
-            no leagal moves while king attacked
-        Draw: -> 0
-            1. no leagal moves while no king attacked
-            2. no enough pieces
-                1)no pawns;
-                2)no rooks, queens;
-                3)no more than 2 light pieces
-        Game going on: -> None
-        ""
-        if len(self.allLeagalMoves()) == 0:
-            if self.isChecked(self.turn):
-                return -INF if self.turn == TURN_W else INF
-            return 0
-
-        countPieces: dict = {piece: 0 for piece in PIECES + BLANK + EDGE}
-        for piece in self.board:
-            countPieces[piece] += 1
-        if (
-            countPieces["P"]
-            == countPieces["p"]
-            == countPieces["R"]
-            == countPieces["r"]
-            == countPieces["Q"]
-            == countPieces["q"]
-            == 0
-            and countPieces["N"]
-            + countPieces["n"]
-            + countPieces["B"]
-            + countPieces["b"]
-            <= 2
-        ):
-            return 0
-
-        return None
-"""
-
-    #@dt.dicted_timer
     def isMiddleGame(self) -> bool:
         return not self.isEndGame
 
-    #@dt.dicted_timer
     def isEndGame(self) -> bool:
         count = 0
         for piece in self.board:
@@ -583,13 +530,32 @@ class Position:
         return PST[key][sq]
 
     @cache
-    #@dt.dicted_timer
     def calcScore(self) -> int:
-        res = 0
+        self.score_val = sum(map(lambda sq: self.sqScore(sq), ITER_BOARD))
+        return self.score_val
+
+    @cache
+    def gameEnd(self) -> int:
+        """
+        INF: white wins
+        -INF: black wins
+        0: no king captured
+        """
+        white_king = None
+        black_king = None
         for sq in ITER_BOARD:
-            res += self.sqScore(sq)
-        self.score_val = res
-        return res
+            if self.board[sq] == "K":
+                white_king = sq
+            elif self.board[sq] == "k":
+                black_king = sq
+        if not black_king and not white_king:
+            raise(Exception("gameEnd(): No king on the board!"))
+        elif not black_king:
+            return INF
+        elif not white_king:
+            return -INF
+        else:
+            return 0
 
     def move(self, fro, to):
         fro = alg2sq(fro)

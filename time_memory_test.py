@@ -93,7 +93,14 @@ def test_copy():
 
 def main(depth = TEST_DEPTH):
     print(
-        f"USE_Z_HASH: {USE_Z_HASH}\nUSE_SELF_CACHE: {USE_SELF_CACHE}\nUSE_AB: {cb.USE_AB}\ndepth: {depth}\nTEST_FEN: {TEST_FEN}\n------"
+        f"USE_Z_HASH: {USE_Z_HASH}\n"
+        f"USE_SELF_CACHE: {USE_SELF_CACHE}\n"
+        f"USE_AB: {cb.USE_AB}\n"
+        f"depth: {depth}\n"
+        f"DEEPEN: {DEEPEN_SEARCH}\n"
+        f"deepen depth: {DEEPEN_DEPTH if DEEPEN_SEARCH else None}\n"
+        f"TEST_FEN: {TEST_FEN}\n"
+        f"------"
     )
     print("------\nresult: ", test_searcher())
 

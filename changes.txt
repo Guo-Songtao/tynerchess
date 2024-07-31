@@ -1,1 +1,3 @@
-1) now score of a position can be indiced from its father position, no need to recalculate.
+1) added deepen search. not very good.
+2) fixed the bug that canCastle is not refreshed when king is captured.
+3) searcher now can recognize stale mate, and end the whole branch when king is captured.
